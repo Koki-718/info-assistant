@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Intelligence Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0f172a', // Slate 900
+                        surface: '#1e293b', // Slate 800
+                        'surface-hover': '#334155', // Slate 700
+                        primary: '#6366f1', // Indigo 500
+                        'primary-glow': 'rgba(99, 102, 241, 0.15)',
+                        text: {
+                            main: '#f8fafc', // Slate 50
+                            muted: '#94a3b8', // Slate 400
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glow': '0 0 20px rgba(99, 102, 241, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            color: #94a3b8;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background: #1e293b;
+            color: #fff;
+        }
+
+        .sidebar-link.active {
+            background: #1e293b;
+            color: #6366f1;
+        }
+
+        .assistant-card {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .assistant-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .search-bar {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s;
+        }
+
+        .search-bar:focus-within {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+    </style>
+</head>
+
+<body class="h-screen flex overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#0f172a] border-r border-slate-800 flex flex-col p-6 hidden md:flex">
+        <div class="flex items-center gap-3 mb-10 px-2">
+            <div
+                class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-glow">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <span class="font-bold text-lg tracking-tight">Nexus AI</span>
+        </div>
+
+        <nav class="space-y-1 flex-1">
+            <a href="#" class="sidebar-link active">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                    </path>
+                </svg>
+                Dashboard
+            </a>
+            <a href="#" class="sidebar-link">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                    </path>
+                </svg>
+                Sources
+            </a>
+            <a href="#" class="sidebar-link">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                    </path>
+                </svg>
+                Reports
+            </a>
+        </nav>
+
+        <div class="mt-auto pt-6 border-t border-slate-800">
+            <div class="flex items-center gap-3 px-2">
+                <div class="w-8 h-8 rounded-full bg-slate-700"></div>
+                <div class="flex-1">
+                    <div class="text-sm font-medium">Koki Fujimoto</div>
+                    <div class="text-xs text-slate-400">Pro Plan</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto bg-[#0f172a] relative">
+        <!-- Top Bar -->
+        <header
+            class="h-16 flex items-center justify-between px-8 sticky top-0 bg-[#0f172a]/80 backdrop-blur-md z-40 border-b border-slate-800/50">
+            <h1 class="font-semibold text-lg">Good evening, Koki</h1>
+            <div class="flex items-center gap-4">
+                <button
+                    class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700 transition">
+                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="max-w-5xl mx-auto px-8 py-8">
+
+            <!-- AI Input -->
+            <section class="mb-12">
+                <div class="search-bar rounded-2xl p-2 flex items-center shadow-lg">
+                    <div class="p-3 text-indigo-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <input type="text"
+                        class="flex-1 bg-transparent border-none text-white px-2 py-2 focus:outline-none text-lg placeholder-slate-500"
+                        placeholder="Ask Nexus to track a new topic...">
+                    <button
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium transition shadow-glow">
+                        Track
+                    </button>
+                </div>
+                <div class="mt-4 flex gap-3 text-sm">
+                    <span class="text-slate-500">Suggestions:</span>
+                    <button
+                        class="px-3 py-1 rounded-lg bg-slate-800/50 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition">Latest
+                        AI Models</button>
+                    <button
+                        class="px-3 py-1 rounded-lg bg-slate-800/50 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition">Crypto
+                        Regulations</button>
+                </div>
+            </section>
+
+            <!-- Stats / Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="assistant-card p-5 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold">124</div>
+                        <div class="text-sm text-slate-400">Articles Processed</div>
+                    </div>
+                </div>
+                <div class="assistant-card p-5 flex items-center gap-4">
+                    <div
+                        class="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold">12</div>
+                        <div class="text-sm text-slate-400">New Insights</div>
+                    </div>
+                </div>
+                <div class="assistant-card p-5 flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold">98%</div>
+                        <div class="text-sm text-slate-400">Relevance Score</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feed -->
+            <h2 class="text-xl font-semibold mb-6 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                Live Intelligence Feed
+            </h2>
+
+            <div class="space-y-4">
+                <!-- Feed Item 1 -->
+                <article class="assistant-card p-6 hover:border-indigo-500/50 group cursor-pointer">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="bg-blue-500/10 text-blue-400 text-xs font-semibold px-2.5 py-0.5 rounded">TechCrunch</span>
+                            <span class="text-slate-500 text-xs">• 2 hours ago</span>
+                        </div>
+                        <button class="text-slate-500 hover:text-indigo-400 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2 group-hover:text-indigo-400 transition">OpenAI Announces GPT-5
+                        Development Phase</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                        The latest iteration aims for AGI-level performance with enhanced reasoning capabilities. Early
+                        benchmarks suggest a 40% increase in complex problem-solving...
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-md">#GenerativeAI</span>
+                        <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-md">#LLM</span>
+                    </div>
+                </article>
+
+                <!-- Feed Item 2 -->
+                <article class="assistant-card p-6 hover:border-indigo-500/50 group cursor-pointer">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="bg-orange-500/10 text-orange-400 text-xs font-semibold px-2.5 py-0.5 rounded">Reuters</span>
+                            <span class="text-slate-500 text-xs">• 5 hours ago</span>
+                        </div>
+                        <button class="text-slate-500 hover:text-indigo-400 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2 group-hover:text-indigo-400 transition">Semiconductor Supply Chain
+                        Stabilizes</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed mb-4">
+                        New fabrication plants in Arizona and Germany are coming online, easing the global shortage.
+                        Analysts predict a normalization of prices by Q4...
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-md">#Hardware</span>
+                        <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-md">#Market</span>
+                    </div>
+                </article>
+            </div>
+
+        </div>
+    </main>
+
+</body>
+
+</html>
