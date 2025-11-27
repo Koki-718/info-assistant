@@ -21,16 +21,17 @@ export async function POST(request: Request) {
 
         if (topicError) {
             console.error('Topic Error:', topicError);
-            return NextResponse.json({ error: 'Failed to save topic' }, { status: 500 });
+            return NextResponse.json({ error: 'Failed to save topic', details: topicError }, { status: 500 });
         }
 
         // 2. AI Agent: Discover Sources
         // In a real app, we would search Google/Bing here.
         // For this prototype, we ask Gemini to suggest RSS feeds or URLs.
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
         const prompt = `
       User wants to track: "${keyword}".
-      Suggest 3 reliable RSS feeds or website URLs to track this topic.
+      Suggest 5 reliable RSS feeds or website URLs to track this topic.
+      Prioritize RSS feeds over plain websites.
       Return ONLY a JSON array of objects with "url", "name", and "type" (rss or website).
       Example: [{"url": "https://example.com/feed", "name": "Example Tech", "type": "rss"}]
     `;
@@ -41,18 +42,55 @@ export async function POST(request: Request) {
             const text = response.text();
             // Clean up markdown code blocks if present
             const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            const sources = JSON.parse(jsonStr);
+            const candidates = JSON.parse(jsonStr);
 
-            // 3. Save Sources
-            const sourcesToInsert = sources.map((s: any) => ({
-                topic_id: topic.id,
-                url: s.url,
-                name: s.name,
-                type: s.type,
-                reliability_score: 80
-            }));
+            // 3. Validate & Save Sources
+            const validSources = [];
 
-            await supabase.from('sources').insert(sourcesToInsert);
+            for (const candidate of candidates) {
+                try {
+                    // Simple validation: Check if URL is reachable
+                    const res = await fetch(candidate.url, {
+                        method: 'HEAD',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                        }
+                    });
+
+                    if (res.ok || res.status === 405) { // 405 Method Not Allowed might mean HEAD is blocked but GET works
+                        validSources.push({
+                            topic_id: topic.id,
+                            url: candidate.url,
+                            name: candidate.name,
+                            type: candidate.type,
+                            reliability_score: 80
+                        });
+                    }
+                } catch (e) {
+                    console.log(`Validation failed for ${candidate.url}:`, e);
+                }
+
+                if (validSources.length >= 3) break; // Stop after finding 3 valid sources
+            }
+
+            if (validSources.length > 0) {
+                await supabase.from('sources').insert(validSources);
+            } else {
+                console.warn('No valid sources found for topic:', keyword);
+
+                // Fallback: Use Google News RSS
+                const googleNewsUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
+
+                console.log('Using fallback source:', googleNewsUrl);
+
+                await supabase.from('sources').insert({
+                    topic_id: topic.id,
+                    url: googleNewsUrl,
+                    name: 'Google News',
+                    type: 'rss',
+                    reliability_score: 90
+                });
+            }
 
         } catch (aiError) {
             console.error('AI Error:', aiError);

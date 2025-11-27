@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { fetchFeed, fetchWebPage } from '@/lib/fetcher';
-import { summarizeText, generateEmbedding } from '@/lib/gemini';
+import { analyzeArticle } from '@/lib/gemini';
 
 // Allow this to run for up to 5 minutes on Vercel Pro (or default 10s on Hobby, so be careful)
 export const maxDuration = 300;
@@ -26,16 +26,23 @@ export async function GET(request: Request) {
         let processedCount = 0;
 
         // 2. Process each source
-        for (const source of sources) {
-            let articles = [];
+        const logs: string[] = [`Found ${sources?.length} sources`];
 
-            if (source.type === 'rss') {
-                articles = await fetchFeed(source.url);
-            } else {
-                // For websites, we might just fetch the main page as one "article" or look for links
-                // For this prototype, let's treat the page itself as the content to monitor
-                const article = await fetchWebPage(source.url);
-                if (article) articles = [article];
+        for (const source of sources) {
+            let articles: any[] = [];
+            logs.push(`Processing source: ${source.url} (${source.type})`);
+
+            try {
+                if (source.type === 'rss') {
+                    articles = await fetchFeed(source.url);
+                } else {
+                    const article = await fetchWebPage(source.url);
+                    if (article) articles = [article];
+                }
+                logs.push(`Fetched ${articles.length} articles from ${source.url}`);
+            } catch (e) {
+                logs.push(`Error fetching ${source.url}: ${e}`);
+                continue;
             }
 
             // 3. Process each article
@@ -49,33 +56,46 @@ export async function GET(request: Request) {
 
                 if (!existing) {
                     // New article found!
+                    logs.push(`New article found: ${item.title}`);
 
-                    // Summarize
-                    const summary = await summarizeText(item.content);
+                    // Comprehensive AI Analysis
+                    const analysis = await analyzeArticle(item.title, item.content);
 
-                    // Generate Embedding
-                    const embedding = await generateEmbedding(summary);
-
-                    // Save
-                    await supabase.from('articles').insert({
+                    // Save with all analysis fields
+                    const { error: insertError } = await supabase.from('articles').insert({
                         source_id: source.id,
                         title: item.title,
                         url: item.url,
-                        content: item.content, // Store full content? Maybe truncate if too large
-                        summary: summary,
+                        content: item.content.substring(0, 50000), // Limit storage
+                        summary: analysis.summary,
                         published_at: item.publishedAt,
-                        embedding: embedding // pgvector
+                        importance_score: analysis.importance_score,
+                        entities: analysis.entities,
+                        sentiment: analysis.sentiment,
+                        tags: analysis.tags,
+                        embedding: analysis.embedding
                     });
 
-                    processedCount++;
+                    if (insertError) {
+                        logs.push(`Error saving article ${item.title}: ${JSON.stringify(insertError)}`);
+                    } else {
+                        processedCount++;
+                        logs.push(`Saved with importance=${analysis.importance_score}, entities=${analysis.entities.length}`);
+                    }
+                } else {
+                    // logs.push(`Article already exists: ${item.title}`);
                 }
             }
         }
 
-        return NextResponse.json({ success: true, processed: processedCount });
+        return NextResponse.json({
+            success: true,
+            processed: processedCount,
+            logs: logs
+        });
 
     } catch (error) {
         console.error('Cron Error:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal Server Error', details: error }, { status: 500 });
     }
 }

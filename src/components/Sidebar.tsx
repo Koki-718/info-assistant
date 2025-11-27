@@ -6,10 +6,10 @@ import { LayoutDashboard, Database, FileText, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-    { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/sources', label: 'Sources', icon: Database },
-    { href: '/reports', label: 'Reports', icon: FileText },
-    { href: '/settings', label: 'Settings', icon: Settings },
+    { href: '/', label: 'ダッシュボード', icon: LayoutDashboard },
+    { href: '/sources', label: '情報源', icon: Database },
+    { href: '/reports', label: 'レポート', icon: FileText },
+    { href: '/settings', label: '設定', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -19,7 +19,7 @@ export function Sidebar() {
         <aside className="w-64 bg-[#0f172a] border-r border-slate-800 flex flex-col p-6 hidden md:flex h-screen sticky top-0">
             <div className="flex items-center gap-3 mb-10 px-2">
                 <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-glow">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 </div>
                 <span className="font-bold text-lg tracking-tight text-white">Nexus AI</span>
             </div>

@@ -1,117 +1,385 @@
-```javascript
+'use client';
+
+import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { TopicInput } from '@/components/TopicInput';
 import { KnowledgeGraph } from '@/components/KnowledgeGraph';
-import { formatDistanceToNow } from 'date-fns';
 
-// Re-create client here for server component usage if needed, or use a server-utils file
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Revalidate every 60 seconds
-export const revalidate = 60;
+function getImportanceBadge(score: number) {
+  if (score >= 80) return { color: 'bg-red-500', label: '重要', icon: '🔥' };
+  if (score >= 60) return { color: 'bg-orange-500', label: '注目', icon: '⚡' };
+  if (score >= 40) return { color: 'bg-blue-500', label: '通常', icon: '📰' };
+  return { color: 'bg-gray-500', label: '低', icon: '📄' };
+}
 
-export default async function Home() {
-  // Fetch Topics
-  const { data: topics } = await supabase.from('topics').select('*');
-  
-  // Fetch Articles (latest 20) with Source info
-  const { data: articles } = await supabase
-    .from('articles')
-    .select('*, source:sources(topic_id, name)')
-    .order('published_at', { ascending: false })
-    .limit(20);
+function getSentimentIcon(sentiment: string) {
+  if (sentiment === 'positive') return '😊';
+  if (sentiment === 'negative') return '😟';
+  return '😐';
+}
+
+export default function Home() {
+  const [articles, setArticles] = useState<any[]>([]);
+  const [topics, setTopics] = useState<any[]>([]);
+  const [readArticles, setReadArticles] = useState<Set<number>>(new Set());
+  const [fadingOut, setFadingOut] = useState<Set<number>>(new Set()); // Articles being faded out
+  const [filterMode, setFilterMode] = useState<'unread' | 'read' | 'all'>('unread');
+  const [pageSize, setPageSize] = useState(15);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<'importance' | 'date'>('importance'); // Default to importance
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    // Fetch articles
+    const { data: articlesData } = await supabase
+      .from('articles')
+      .select('id, title, url, summary, published_at, importance_score, sentiment, tags, entities')
+      .order('published_at', { ascending: false });
+
+    // Fetch topics
+    const { data: topicsData } = await supabase.from('topics').select('*');
+
+    // Fetch read status
+    const { data: readStatus } = await supabase.from('article_read_status').select('article_id');
+
+    setArticles(articlesData || []);
+    setTopics(topicsData || []);
+    setReadArticles(new Set(readStatus?.map((r: any) => r.article_id) || []));
+  };
+
+  const toggleReadStatus = async (articleId: number) => {
+    const isRead = readArticles.has(articleId);
+
+    if (isRead) {
+      // Mark as unread
+      await fetch(`/api/read-status?articleId=${articleId}`, { method: 'DELETE' });
+      setReadArticles(prev => {
+        const next = new Set(prev);
+        next.delete(articleId);
+        return next;
+      });
+    } else {
+      // Mark as read
+      // 1. Mark as fading out (triggers CSS animation)
+      setFadingOut(prev => new Set(prev).add(articleId));
+
+      // 2. Update read status (shows checkmark)
+      setReadArticles(prev => new Set(prev).add(articleId));
+
+      // 3. API call
+      await fetch('/api/read-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articleId })
+      });
+
+      // 4. Wait for animation (0.7s for smooth fade)
+      await new Promise(resolve => setTimeout(resolve, 700));
+
+      // 5. Remove from fading state (will be filtered out of unread view)
+      setFadingOut(prev => {
+        const next = new Set(prev);
+        next.delete(articleId);
+        return next;
+      });
+    }
+  };
+
+  // Filter and sort articles
+  let filteredArticles = articles.filter(article => {
+    // Keep fading articles visible during animation
+    if (fadingOut.has(article.id) && filterMode === 'unread') return true;
+
+    if (filterMode === 'unread') return !readArticles.has(article.id);
+    if (filterMode === 'read') return readArticles.has(article.id);
+    return true; // 'all'
+  });
+
+  // Sort by importance (desc) then date (desc), or date (desc) then importance (desc)
+  if (sortBy === 'importance') {
+    filteredArticles = filteredArticles.sort((a, b) => {
+      const importanceDiff = (b.importance_score || 50) - (a.importance_score || 50);
+      if (importanceDiff !== 0) return importanceDiff;
+      return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+    });
+  } else {
+    filteredArticles = filteredArticles.sort((a, b) => {
+      const dateDiff = new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return (b.importance_score || 50) - (a.importance_score || 50);
+    });
+  }
+
+  // Pagination
+  const totalPages = Math.ceil(filteredArticles.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedArticles = filteredArticles.slice(startIndex, startIndex + pageSize);
 
   const stats = {
-    processed: articles?.length || 0,
-    insights: 5, // Mock for now
-    relevance: 92 // Mock for now
+    total: articles.length,
+    unread: articles.length - readArticles.size,
+    read: readArticles.size,
+    important: articles.filter(a => a.importance_score >= 80).length
   };
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterMode, pageSize, sortBy]);
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
-      
-      {/* Top Bar */}
-      <header className="h-16 flex items-center justify-between mb-8">
-        <h1 className="font-semibold text-lg">Good evening, User</h1>
-        <div className="flex items-center gap-4">
-          <button className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center hover:bg-slate-700 transition">
-            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-          </button>
+      <div className="p-6">
+        {/* Header */}
+        <header className="mb-10">
+          <h1 className="text-3xl font-bold text-white mb-2">こんにちは、Userさん</h1>
+          <p className="text-slate-400">最新のインテリジェンスフィードをチェックしましょう。</p>
+        </header>
+
+        {/* Topic Input */}
+        <div className="mb-10">
+          <TopicInput />
         </div>
-      </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Input & Feed */}
-        <div className="lg:col-span-2 space-y-8">
-            <TopicInput />
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Feed */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Controls */}
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-semibold text-white">フィード</h2>
+                <div className="flex items-center gap-2 bg-[#1e293b] rounded-lg p-1">
+                  <button
+                    onClick={() => setFilterMode('unread')}
+                    className={`px-4 py-2 rounded text-sm font-medium transition ${filterMode === 'unread' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                  >
+                    未読 ({stats.unread})
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('read')}
+                    className={`px-4 py-2 rounded text-sm font-medium transition ${filterMode === 'read' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                  >
+                    既読 ({stats.read})
+                  </button>
+                  <button
+                    onClick={() => setFilterMode('all')}
+                    className={`px-4 py-2 rounded text-sm font-medium transition ${filterMode === 'all' ? 'bg-green-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                  >
+                    すべて ({stats.total})
+                  </button>
+                </div>
+              </div>
 
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                Live Intelligence Feed
-            </h2>
+              <div className="flex items-center gap-4">
+                {/* Sort selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400">並び順:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'importance' | 'date')}
+                    className="bg-[#1e293b] text-white border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="importance">重要度順</option>
+                    <option value="date">新着順</option>
+                  </select>
+                </div>
 
-            <div className="space-y-4">
-                {articles?.map((article) => (
-                <article key={article.id} className="bg-[#1e293b] border border-slate-700/50 rounded-2xl p-6 hover:border-indigo-500/50 group cursor-pointer transition shadow-lg">
-                    <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                        <span className="bg-blue-500/10 text-blue-400 text-xs font-semibold px-2.5 py-0.5 rounded">
-                            {article.source?.name || 'Unknown Source'}
-                        </span>
-                        <span className="text-slate-500 text-xs">
-                            • {formatDistanceToNow(new Date(article.published_at), { addSuffix: true })}
-                        </span>
-                    </div>
-                    <a href={article.url} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-indigo-400 transition">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                    </a>
-                    </div>
-                    <h3 className="text-lg font-bold mb-2 group-hover:text-indigo-400 transition">{article.title}</h3>
-                    <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                        {article.summary || 'No summary available.'}
-                    </p>
-                </article>
-                ))}
-                {(!articles || articles.length === 0) && (
-                    <div className="text-center py-10 text-slate-500">
-                        No articles found. Try adding a topic!
-                    </div>
-                )}
+                {/* Page size selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400">表示件数:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="bg-[#1e293b] text-white border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value={10}>10件</option>
+                    <option value={15}>15件</option>
+                    <option value={20}>20件</option>
+                    <option value={50}>50件</option>
+                  </select>
+                </div>
+              </div>
             </div>
-        </div>
 
-        {/* Right Column: Stats & Graph */}
-        <div className="space-y-6">
-             {/* Stats */}
+            {paginatedArticles.length === 0 ? (
+              <div className="text-center py-20 bg-[#1e293b] rounded-2xl border border-slate-700/50">
+                <p className="text-slate-400 mb-4">
+                  {filterMode === 'unread' && '未読記事がありません。'}
+                  {filterMode === 'read' && '既読記事がありません。'}
+                  {filterMode === 'all' && '記事がつかめていません。トピックを追加してみてください！'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  {paginatedArticles.map((article: any) => {
+                    const badge = getImportanceBadge(article.importance_score || 50);
+                    const isRead = readArticles.has(article.id);
+                    const isFading = fadingOut.has(article.id);
+
+                    return (
+                      <div
+                        key={article.id}
+                        className={`bg-[#1e293b] border ${article.importance_score >= 80 ? 'border-red-500/50' : 'border-slate-700/50'
+                          } rounded-2xl p-6 hover:border-indigo-500/50 group ${isRead && !isFading ? 'opacity-60' : ''
+                          } ${isFading ? 'animate-fadeOut' : 'transition'
+                          }`}
+                      >
+                        {/* Header with importance and sentiment */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {/* Read checkbox */}
+                            <button
+                              onClick={() => toggleReadStatus(article.id)}
+                              className={`w-6 h-6 rounded border-2 flex items-center justify-center transition ${isRead
+                                ? 'bg-green-500 border-green-500'
+                                : 'border-slate-600 hover:border-indigo-500'
+                                }`}
+                              title={isRead ? '未読にする' : '既読にする'}
+                            >
+                              {isRead && (
+                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+
+                            <span className={`${badge.color} text-white text-xs px-2 py-1 rounded-full font-medium`}>
+                              {badge.icon} {badge.label} {article.importance_score || 50}/100
+                            </span>
+                            {article.sentiment && (
+                              <span className="text-xl" title={article.sentiment}>
+                                {getSentimentIcon(article.sentiment)}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-500">
+                            {new Date(article.published_at).toLocaleDateString('ja-JP')}
+                          </span>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="text-lg font-semibold text-white mb-3 group-hover:text-indigo-400 transition">
+                          <a href={article.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                            {article.title}
+                            <svg className="w-4 h-4 opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        </h3>
+
+                        {/* Summary */}
+                        {article.summary && (
+                          <p className="text-slate-300 text-sm mb-4 leading-relaxed">
+                            {article.summary}
+                          </p>
+                        )}
+
+                        {/* Tags and Entities */}
+                        <div className="flex flex-wrap gap-2">
+                          {article.tags && article.tags.length > 0 && article.tags.map((tag: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="bg-indigo-500/10 text-indigo-300 text-xs px-3 py-1 rounded-full border border-indigo-500/20"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                          {article.entities && article.entities.slice(0, 3).map((entity: any, idx: number) => (
+                            <span
+                              key={idx}
+                              className="bg-purple-500/10 text-purple-300 text-xs px-3 py-1 rounded-full border border-purple-500/20"
+                              title={entity.type}
+                            >
+                              {entity.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-700">
+                    <div className="text-sm text-slate-400">
+                      {startIndex + 1} - {Math.min(startIndex + pageSize, filteredArticles.length)} / {filteredArticles.length}件
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 bg-[#1e293b] text-white rounded-lg disabled:opacity-30 hover:bg-slate-800 transition"
+                      >
+                        前へ
+                      </button>
+                      <span className="text-sm text-slate-400">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 bg-[#1e293b] text-white rounded-lg disabled:opacity-30 hover:bg-slate-800 transition"
+                      >
+                        次へ
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Right Column: Stats & Graph */}
+          <div className="space-y-6">
+            {/* Stats */}
             <div className="grid grid-cols-1 gap-4">
-                <div className="bg-[#1e293b] border border-slate-700/50 rounded-2xl p-5 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
-                    </div>
-                    <div>
-                        <div className="text-xl font-bold">{stats.processed}</div>
-                        <div className="text-xs text-slate-400">Articles</div>
-                    </div>
+              <div className="bg-[#1e293b] border border-slate-700/50 rounded-2xl p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
                 </div>
-                <div className="bg-[#1e293b] border border-slate-700/50 rounded-2xl p-5 flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
-                    </div>
-                    <div>
-                        <div className="text-xl font-bold">{stats.insights}</div>
-                        <div className="text-xs text-slate-400">Insights</div>
-                    </div>
+                <div>
+                  <div className="text-xl font-bold">{stats.total}</div>
+                  <div className="text-xs text-slate-400">記事総数</div>
                 </div>
+              </div>
+              <div className="bg-[#1e293b] border border-indigo-500/30 rounded-2xl p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                  <div className="text-xl font-bold">{stats.unread}</div>
+                  <div className="text-xs text-slate-400">未読記事</div>
+                </div>
+              </div>
+              <div className="bg-[#1e293b] border border-red-500/30 rounded-2xl p-5 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                </div>
+                <div>
+                  <div className="text-xl font-bold">{stats.important}</div>
+                  <div className="text-xs text-slate-400">重要記事</div>
+                </div>
+              </div>
             </div>
 
             {/* Graph */}
             <KnowledgeGraph topics={topics || []} articles={articles || []} />
+          </div>
         </div>
       </div>
-
     </div>
   );
 }
-```
