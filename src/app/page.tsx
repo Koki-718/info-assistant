@@ -31,6 +31,7 @@ export default function Home() {
   const [pageSize, setPageSize] = useState(15);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<'importance' | 'date'>('importance'); // Default to importance
+  const [selectedTag, setSelectedTag] = useState<string | null>(null); // Tag or Entity filter
 
   useEffect(() => {
     fetchData();
@@ -97,9 +98,18 @@ export default function Home() {
     // Keep fading articles visible during animation
     if (fadingOut.has(article.id) && filterMode === 'unread') return true;
 
-    if (filterMode === 'unread') return !readArticles.has(article.id);
-    if (filterMode === 'read') return readArticles.has(article.id);
-    return true; // 'all'
+    // 1. Read/Unread Filter
+    if (filterMode === 'unread' && readArticles.has(article.id)) return false;
+    if (filterMode === 'read' && !readArticles.has(article.id)) return false;
+
+    // 2. Tag/Entity Filter
+    if (selectedTag) {
+      const hasTag = article.tags?.includes(selectedTag);
+      const hasEntity = article.entities?.some((e: any) => e.name === selectedTag);
+      if (!hasTag && !hasEntity) return false;
+    }
+
+    return true;
   });
 
   // Sort by importance (desc) then date (desc), or date (desc) then importance (desc)
@@ -152,6 +162,20 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Feed */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Active Filter Display */}
+            {selectedTag && (
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-sm text-slate-400">フィルタ中:</span>
+                <button
+                  onClick={() => setSelectedTag(null)}
+                  className="flex items-center gap-1 bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full text-sm hover:bg-indigo-500/30 transition group"
+                >
+                  #{selectedTag}
+                  <svg className="w-4 h-4 opacity-60 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+            )}
+
             {/* Controls */}
             <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
               <div className="flex items-center gap-4">
@@ -289,21 +313,29 @@ export default function Home() {
                         {/* Tags and Entities */}
                         <div className="flex flex-wrap gap-2">
                           {article.tags && article.tags.length > 0 && article.tags.map((tag: string, idx: number) => (
-                            <span
+                            <button
                               key={idx}
-                              className="bg-indigo-500/10 text-indigo-300 text-xs px-3 py-1 rounded-full border border-indigo-500/20"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setSelectedTag(tag);
+                              }}
+                              className="bg-indigo-500/10 text-indigo-300 text-xs px-3 py-1 rounded-full border border-indigo-500/20 hover:bg-indigo-500/20 transition"
                             >
                               #{tag}
-                            </span>
+                            </button>
                           ))}
                           {article.entities && article.entities.slice(0, 3).map((entity: any, idx: number) => (
-                            <span
+                            <button
                               key={idx}
-                              className="bg-purple-500/10 text-purple-300 text-xs px-3 py-1 rounded-full border border-purple-500/20"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setSelectedTag(entity.name);
+                              }}
+                              className="bg-purple-500/10 text-purple-300 text-xs px-3 py-1 rounded-full border border-purple-500/20 hover:bg-purple-500/20 transition"
                               title={entity.type}
                             >
                               {entity.name}
-                            </span>
+                            </button>
                           ))}
                         </div>
                       </div>
