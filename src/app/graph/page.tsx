@@ -18,12 +18,11 @@ export default function GraphPage() {
     }, []);
 
     const fetchData = async () => {
-        // Fetch articles (fetch more for graph view)
+        // Fetch articles (fetch all for graph view)
         const { data: articlesData } = await supabase
             .from('articles')
             .select('id, title, url, summary, published_at, importance_score, sentiment, tags, entities, source:sources(topic_id)')
-            .order('published_at', { ascending: false })
-            .limit(100); // Fetch more for better visualization
+            .order('published_at', { ascending: false });
 
         // Fetch topics
         const { data: topicsData } = await supabase.from('topics').select('*');
@@ -33,7 +32,7 @@ export default function GraphPage() {
     };
 
     return (
-        <div className="w-screen h-screen bg-[#0b0e14] flex flex-col overflow-hidden">
+        <div className="w-full h-screen bg-[#0b0e14] flex flex-col overflow-hidden">
             {/* Header */}
             <header className="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-[#0b0e14]/80 backdrop-blur-md z-10">
                 <div className="flex items-center gap-4">
@@ -53,8 +52,8 @@ export default function GraphPage() {
             {/* Main Content (Full Screen Graph) */}
             <div className="flex-1 relative">
                 {/* Override KnowledgeGraph container style to fill parent */}
-                <div className="absolute inset-0 [&>div]:!h-full [&>div]:!rounded-none [&>div]:!border-none">
-                    <KnowledgeGraph topics={topics} articles={articles} />
+                <div className="absolute inset-0">
+                    <KnowledgeGraph topics={topics} articles={articles} className="h-full rounded-none border-none" />
                 </div>
             </div>
         </div>

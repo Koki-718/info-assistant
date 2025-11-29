@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isValidTopic } from '@/lib/validation';
 
 export function TopicInput() {
     const [keyword, setKeyword] = useState('');
@@ -10,7 +11,7 @@ export function TopicInput() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!keyword.trim()) return;
+        if (!isValidTopic(keyword)) return;
 
         setIsLoading(true);
         try {

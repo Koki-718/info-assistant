@@ -62,25 +62,31 @@ export async function GET(request: Request) {
                     const analysis = await analyzeArticle(item.title, item.content);
 
                     // Save with all analysis fields
-                    const { error: insertError } = await supabase.from('articles').insert({
+                    const { data: savedArticle, error: saveError } = await supabase.from('articles').insert({
                         source_id: source.id,
                         title: item.title,
-                        url: item.url,
+                        url: item.url, // Assuming item.url is correct, not item.link as in diff
                         content: item.content.substring(0, 50000), // Limit storage
                         summary: analysis.summary,
-                        published_at: item.publishedAt,
+                        published_at: item.publishedAt, // Assuming item.publishedAt is correct, not pubDate as in diff
                         importance_score: analysis.importance_score,
                         entities: analysis.entities,
                         sentiment: analysis.sentiment,
                         tags: analysis.tags,
                         embedding: analysis.embedding
-                    });
+                    })
+                        .select('*, source:sources(name)') // Select source name for notification
+                        .single();
 
-                    if (insertError) {
-                        logs.push(`Error saving article ${item.title}: ${JSON.stringify(insertError)}`);
+                    if (saveError) {
+                        console.error(`Failed to save article: ${item.title}`, saveError);
+                        logs.push(`Error saving article ${item.title}: ${JSON.stringify(saveError)}`);
+                        continue; // Continue to next article if save fails
                     } else {
                         processedCount++;
                         logs.push(`Saved with importance=${analysis.importance_score}, entities=${analysis.entities.length}`);
+                        // Send Notification
+                        await sendSlackNotification(savedArticle);
                     }
                 } else {
                     // logs.push(`Article already exists: ${item.title}`);

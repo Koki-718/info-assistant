@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { TopicInput } from '@/components/TopicInput';
 import { KnowledgeGraph } from '@/components/KnowledgeGraph';
+import { AutoRefresher } from '@/components/AutoRefresher';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -146,6 +146,7 @@ export default function Home() {
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
+      <AutoRefresher />
       <div className="p-6">
         {/* Header */}
         <header className="mb-10">
@@ -153,9 +154,51 @@ export default function Home() {
           <p className="text-slate-400">最新のインテリジェンスフィードをチェックしましょう。</p>
         </header>
 
-        {/* Topic Input */}
+        {/* Topic Overview */}
         <div className="mb-10">
-          <TopicInput />
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-white">追跡中のトピック</h2>
+            <a href="/topics" className="text-sm text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              管理
+            </a>
+          </div>
+          {topics && topics.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {topics.map((topic: any) => (
+                <a
+                  key={topic.id}
+                  href={`/topics?id=${topic.id}`}
+                  className={`block p-4 rounded-xl border transition ${topic.is_active !== false
+                    ? 'bg-[#1e293b] border-slate-700/50 hover:border-indigo-500/50'
+                    : 'bg-slate-900/50 border-slate-800/50 opacity-60'
+                    }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-white">{topic.keyword}</h3>
+                    {topic.is_active === false && (
+                      <span className="text-xs bg-slate-700 text-slate-400 px-2 py-1 rounded">無効</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500">
+                    {stats.total > 0 ? `${articles.filter((a: any) => a.source?.topic_id === topic.id).length} 件の記事` : '記事を収集中...'}
+                  </p>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-[#1e293b] border border-slate-700/50 rounded-2xl p-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">トピックが未設定です</h3>
+              <p className="text-slate-400 mb-4">関心のあるトピックを追加して、AIが自動でニュースを収集します。</p>
+              <a href="/topics" className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg font-medium transition">
+                トピックを追加
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+              </a>
+            </div>
+          )}
         </div>
 
         {/* Main Content Grid */}

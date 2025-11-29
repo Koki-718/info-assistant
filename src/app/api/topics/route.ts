@@ -4,6 +4,25 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+export async function GET() {
+    try {
+        const { data: topics, error } = await supabase
+            .from('topics')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching topics:', error);
+            return NextResponse.json({ error: 'Failed to fetch topics', details: error }, { status: 500 });
+        }
+
+        return NextResponse.json({ topics });
+    } catch (error) {
+        console.error('Server Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
 export async function POST(request: Request) {
     try {
         const { keyword } = await request.json();

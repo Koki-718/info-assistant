@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
     { href: '/', label: 'ダッシュボード', icon: LayoutDashboard },
-    { href: '/sources', label: '情報源', icon: Database },
-    { href: '/reports', label: 'レポート', icon: FileText },
+    { href: '/graph', label: 'グラフ', icon: Database },
+    { href: '/topics', label: 'トピック', icon: FileText },
     { href: '/settings', label: '設定', icon: Settings },
 ];
 
