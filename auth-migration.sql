@@ -82,7 +82,8 @@ DROP POLICY IF EXISTS "Users can view own read status" ON article_read_status;
 CREATE POLICY "Users can view own read status" ON article_read_status
     FOR SELECT USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Users can insert own read status" ON article_read_status
+DROP POLICY IF EXISTS "Users can insert own read status" ON article_read_status;
+CREATE POLICY "Users can insert own read status" ON article_read_status
     FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can delete own read status" ON article_read_status;
