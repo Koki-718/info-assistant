@@ -6,6 +6,10 @@ import { KnowledgeGraph } from '@/components/KnowledgeGraph';
 import { AutoRefresher } from '@/components/AutoRefresher';
 import { FeedbackMode } from '@/components/FeedbackMode';
 import { SwipeableArticleCard } from '@/components/SwipeableArticleCard';
+import { SearchBar } from '@/components/SearchBar';
+import { AnalyticsCharts } from '@/components/AnalyticsCharts';
+import { ReportGenerator } from '@/components/ReportGenerator';
+import { NotificationSettings } from '@/components/NotificationSettings';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -36,6 +40,8 @@ export default function Home() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null); // Tag or Entity filter
   const [isFeedbackMode, setIsFeedbackMode] = useState(false);
   const [articleFeedback, setArticleFeedback] = useState<Map<number, boolean>>(new Map()); // articleId -> isInterested
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'analytics'>('list');
 
   useEffect(() => {
     fetchData();
@@ -118,7 +124,20 @@ export default function Home() {
     if (filterMode === 'unread' && readArticles.has(article.id)) return false;
     if (filterMode === 'read' && !readArticles.has(article.id)) return false;
 
-    // 2. Tag/Entity Filter
+    // 2. Search Query Filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesTitle = article.title?.toLowerCase().includes(query);
+      const matchesSummary = article.summary?.toLowerCase().includes(query);
+      const matchesTags = article.tags?.some((tag: string) => tag.toLowerCase().includes(query));
+      const matchesEntities = article.entities?.some((e: any) => e.name.toLowerCase().includes(query));
+
+      if (!matchesTitle && !matchesSummary && !matchesTags && !matchesEntities) {
+        return false;
+      }
+    }
+
+    // 3. Tag/Entity Filter
     if (selectedTag) {
       const hasTag = article.tags?.includes(selectedTag);
       const hasEntity = article.entities?.some((e: any) => e.name === selectedTag);
@@ -189,12 +208,56 @@ export default function Home() {
       <AutoRefresher />
       <div className="p-6">
         {/* Header */}
-        <header className="mb-10">
+        <header className="mb-10 space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">こんにちは、Userさん</h1>
             <p className="text-slate-400">最新のインテリジェンスフィードをチェックしましょう。</p>
           </div>
+
+          {/* Search Bar and View Toggle */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+            <SearchBar onSearch={setSearchQuery} />
+
+            <div className="flex bg-[#1e293b] border border-slate-700 rounded-xl p-1">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${viewMode === 'list'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                <span className="hidden sm:inline">リスト</span>
+              </button>
+              <button
+                onClick={() => setViewMode('analytics')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${viewMode === 'analytics'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span className="hidden sm:inline">分析</span>
+              </button>
+            </div>
+          </div>
         </header>
+
+        {/* Analytics View */}
+        {viewMode === 'analytics' && (
+          <div className="space-y-6 mb-10">
+            <AnalyticsCharts articles={articles} topics={topics} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ReportGenerator />
+              <NotificationSettings />
+            </div>
+          </div>
+        )}
 
         {/* Topic Overview */}
         <div className="mb-10">
