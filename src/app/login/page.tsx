@@ -23,10 +23,10 @@ export default function LoginPage() {
             } else {
                 await signUpWithEmail(email, password);
             }
-            router.push('/');
+            // ハードリフレッシュでcookieを確実に反映
+            window.location.href = '/';
         } catch (err: any) {
             setError(err.message || 'エラーが発生しました');
-        } finally {
             setLoading(false);
         }
     };
@@ -48,8 +48,8 @@ export default function LoginPage() {
                         <button
                             onClick={() => setMode('login')}
                             className={`flex-1 py-2 rounded-lg transition ${mode === 'login'
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'text-slate-400 hover:text-white'
+                                ? 'bg-indigo-600 text-white'
+                                : 'text-slate-400 hover:text-white'
                                 }`}
                         >
                             ログイン
@@ -57,8 +57,8 @@ export default function LoginPage() {
                         <button
                             onClick={() => setMode('signup')}
                             className={`flex-1 py-2 rounded-lg transition ${mode === 'signup'
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'text-slate-400 hover:text-white'
+                                ? 'bg-indigo-600 text-white'
+                                : 'text-slate-400 hover:text-white'
                                 }`}
                         >
                             新規登録

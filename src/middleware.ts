@@ -1,70 +1,86 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(req: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: req.headers,
-        },
-    });
+    let supabaseResponse = NextResponse.next({
+        request: req,
+    })
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
-                get(name: string) {
-                    return req.cookies.get(name)?.value;
+                getAll() {
+                    return req.cookies.getAll()
                 },
-                set(name: string, value: string, options: CookieOptions) {
-                    response = NextResponse.next({
-                        request: {
-                            headers: req.headers,
-                        },
-                    });
-                    response.cookies.set({ name, value, ...options });
-                },
-                remove(name: string, options: CookieOptions) {
-                    response = NextResponse.next({
-                        request: {
-                            headers: req.headers,
-                        },
-                    });
-                    response.cookies.set({ name, value: '', ...options });
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value))
+                    supabaseResponse = NextResponse.next({
+                        request: req,
+                    })
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        supabaseResponse.cookies.set(name, value, options)
+                    )
                 },
             },
         }
-    );
+    )
+
+    // IMPORTANT: Avoid writing any logic between createServerClient and
+    // supabase.auth.getUser(). A simple mistake could make it very hard to debug
+    // issues with users being randomly logged out.
 
     const {
-        data: { session },
-    } = await supabase.auth.getSession();
+        data: { user },
+    } = await supabase.auth.getUser()
 
-    // 認証が必要なページ
-    const protectedPaths = ['/', '/topics', '/graph'];
-    const isProtectedPath = protectedPaths.some((path) =>
-        req.nextUrl.pathname.startsWith(path)
-    );
-
-    // ログインページへのアクセス
+    // ログインページの処理
     if (req.nextUrl.pathname === '/login') {
-        // すでにログイン済みならダッシュボードへ
-        if (session) {
-            return NextResponse.redirect(new URL('/', req.url));
+        // すでにログイン済みの場合、ダッシュボードへリダイレクト
+        if (user) {
+            return NextResponse.redirect(new URL('/', req.url))
         }
-        return response;
+        // 未ログインの場合、ログインページを表示
+        return supabaseResponse
     }
 
-    // 保護されたページで未認証ならログインページへ
-    if (isProtectedPath && !session) {
-        const redirectUrl = new URL('/login', req.url);
-        return NextResponse.redirect(redirectUrl);
+    // 保護されたパス
+    const protectedPaths = ['/', '/topics', '/graph']
+    const isProtectedPath = protectedPaths.some((path) =>
+        req.nextUrl.pathname === path || req.nextUrl.pathname.startsWith(path + '/')
+    )
+
+    // 保護されたパスで未認証の場合、ログインページへリダイレクト
+    if (isProtectedPath && !user) {
+        return NextResponse.redirect(new URL('/login', req.url))
     }
 
-    return response;
+    // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
+    // creating a new response object with NextResponse.next() make sure to:
+    // 1. Pass the request in it, like so:
+    //    const myNewResponse = NextResponse.next({ request })
+    // 2. Copy over the cookies, like so:
+    //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
+    // 3. Change the myNewResponse object to fit your needs, but avoid changing
+    //    the cookies!
+    // 4. Finally:
+    //    return myNewResponse
+    // If this is not done, you may be causing the browser and server to go out
+    // of sync and terminate the user's session prematurely!
+
+    return supabaseResponse
 }
 
 export const config = {
-    matcher: ['/', '/topics/:path*', '/graph/:path*', '/login'],
-};
+    matcher: [
+        /*
+         * Match all request paths except for the ones starting with:
+         * - _next/static (static files)
+         * - _next/image (image optimization files)
+         * - favicon.ico (favicon file)
+         * - images and other static assets
+         */
+        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    ],
+}
