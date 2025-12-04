@@ -210,7 +210,9 @@ export default function Home() {
         {/* Header */}
         <header className="mb-10 space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">こんにちは、Userさん</h1>
+            <a href="/" className="inline-block hover:opacity-80 transition">
+              <h1 className="text-3xl font-bold text-white mb-2">こんにちは、Userさん</h1>
+            </a>
             <p className="text-slate-400">最新のインテリジェンスフィードをチェックしましょう。</p>
           </div>
 

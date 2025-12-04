@@ -71,7 +71,7 @@ export const SearchBar = ({ onSearch, placeholder = '記事を検索...' }: Prop
                 )}
 
                 <kbd className="hidden sm:block px-2 py-1 text-xs text-slate-500 bg-slate-800 border border-slate-700 rounded">
-                    ⌘K
+                    {typeof navigator !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform) ? '⌘' : 'Ctrl+'}K
                 </kbd>
             </div>
         </div>

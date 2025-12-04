@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { AutoRefresher } from "@/components/AutoRefresher";
+import { AuthProvider } from "@/components/AuthProvider";
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
@@ -19,13 +20,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${jakarta.className} bg-[#0f172a] text-slate-50`}>
-        <AutoRefresher />
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <main className="flex-1 overflow-y-auto h-screen">
-            {children}
-          </main>
-        </div>
+        <AuthProvider>
+          <AutoRefresher />
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto h-screen">
+              {children}
+            </main>
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );
