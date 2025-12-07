@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { KnowledgeGraph } from '@/components/KnowledgeGraph';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/components/AuthProvider';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -13,20 +14,37 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export default function GraphPage() {
     const [articles, setArticles] = useState<any[]>([]);
     const [topics, setTopics] = useState<any[]>([]);
+    const { user } = useAuth();
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        if (user) {
+            fetchData();
+        }
+    }, [user]);
 
     const fetchData = async () => {
-        // Fetch articles (fetch all for graph view)
-        const { data: articlesData } = await supabase
+        if (!user) return;
+
+        // Fetch topics for this user
+        const { data: topicsData } = await supabase
+            .from('topics')
+            .select('*')
+            .eq('user_id', user.id);
+
+        // Get topic IDs for this user
+        const userTopicIds = topicsData?.map(t => t.id) || [];
+
+        // Fetch articles for user's topics only
+        let articlesQuery = supabase
             .from('articles')
-            .select('id, title, url, summary, published_at, importance_score, sentiment, tags, entities, source:sources(topic_id)')
+            .select('id, title, url, summary, published_at, importance_score, sentiment, tags, entities, source:sources!inner(topic_id)')
             .order('published_at', { ascending: false });
 
-        // Fetch topics
-        const { data: topicsData } = await supabase.from('topics').select('*');
+        if (userTopicIds.length > 0) {
+            articlesQuery = articlesQuery.in('source.topic_id', userTopicIds);
+        }
+
+        const { data: articlesData } = await articlesQuery;
 
         setArticles(articlesData || []);
         setTopics(topicsData || []);

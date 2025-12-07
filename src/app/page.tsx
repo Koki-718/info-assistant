@@ -45,25 +45,50 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'analytics'>('list');
 
+  const { user, signOut } = useAuth();
+
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   const fetchData = async () => {
-    // Fetch articles
-    const { data: articlesData } = await supabase
+    if (!user) return;
+
+    // Fetch topics for this user
+    const { data: topicsData } = await supabase
+      .from('topics')
+      .select('*')
+      .eq('user_id', user.id);
+
+    // Get topic IDs for this user
+    const userTopicIds = topicsData?.map(t => t.id) || [];
+
+    // Fetch articles for user's topics only
+    let articlesQuery = supabase
       .from('articles')
-      .select('id, title, url, summary, published_at, importance_score, sentiment, tags, entities, source:sources(topic_id)')
+      .select('id, title, url, summary, published_at, importance_score, sentiment, tags, entities, source:sources!inner(topic_id)')
       .order('published_at', { ascending: false });
 
-    // Fetch topics
-    const { data: topicsData } = await supabase.from('topics').select('*');
+    if (userTopicIds.length > 0) {
+      articlesQuery = articlesQuery.in('source.topic_id', userTopicIds);
+    }
 
-    // Fetch read status
-    const { data: readStatus } = await supabase.from('article_read_status').select('article_id');
+    const { data: articlesData } = await articlesQuery;
 
-    // Fetch feedback
-    const { data: feedbackData } = await supabase.from('article_feedback').select('article_id, is_interested').order('created_at', { ascending: false });
+    // Fetch read status for this user
+    const { data: readStatus } = await supabase
+      .from('article_read_status')
+      .select('article_id')
+      .eq('user_id', user.id);
+
+    // Fetch feedback for this user
+    const { data: feedbackData } = await supabase
+      .from('article_feedback')
+      .select('article_id, is_interested')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
 
     // Create map of article_id to latest feedback
     const feedbackMap = new Map<number, boolean>();
@@ -204,8 +229,6 @@ export default function Home() {
       console.error('Error sending feedback:', error);
     }
   };
-
-  const { user, signOut } = useAuth();
 
   return (
     <ProtectedRoute>
