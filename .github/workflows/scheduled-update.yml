@@ -1,0 +1,30 @@
+name: 定期情報収集
+
+on:
+  schedule:
+    # 朝7時 (JST) = 22:00 UTC (前日)
+    - cron: '0 22 * * *'
+    # 昼12時 (JST) = 03:00 UTC
+    - cron: '0 3 * * *'
+    # 夜19時 (JST) = 10:00 UTC
+    - cron: '0 10 * * *'
+  workflow_dispatch:  # 手動実行用
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 情報収集を実行
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${{ secrets.APP_URL }}/api/cron/update" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          
+          if [ "$response" -eq 200 ]; then
+            echo "✅ 情報収集が正常に完了しました"
+          else
+            echo "❌ エラーが発生しました (HTTP $response)"
+            exit 1
+          fi
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

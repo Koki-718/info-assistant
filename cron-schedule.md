@@ -1,35 +1,38 @@
-# Vercel Cron設定
+# 定期情報収集（Cron）設定
+
+## 概要
+
+GitHub Actionsを使用して、無料で定期的な情報収集を実行します。
 
 ## スケジュール
 
-このプロジェクトはVercel Cronを使用して定期的に情報を収集します。
+| 時刻 (JST) | Cron (UTC) | 説明 |
+|-----------|------------|------|
+| 朝 7:00 | `0 22 * * *` | 朝の情報収集 |
+| 昼 12:00 | `0 3 * * *` | 昼の情報収集 |
+| 夜 19:00 | `0 10 * * *` | 夜の情報収集 |
 
-### 実行タイミング
+## セットアップ
 
-- **朝 7:00 (JST)** - `0 22 * * *` (UTC)
-- **昼 12:00 (JST)** - `0 3 * * *` (UTC)
-- **夜 19:00 (JST)** - `0 10 * * *` (UTC)
+### 1. GitHub Secretsを設定
 
-※ JSTはUTC+9時間です
+リポジトリの **Settings** → **Secrets and variables** → **Actions** で以下を追加：
 
-### エンドポイント
+| Secret名 | 値 |
+|---------|---|
+| `APP_URL` | デプロイ先URL（例: `https://your-app.vercel.app`） |
+| `CRON_SECRET` | 任意の秘密鍵（例: `your-secret-key-here`） |
 
-`/api/cron/update` - 全トピックの情報源から記事を収集
+### 2. 環境変数を設定
 
-## 設定方法
+Vercelの環境変数にも `CRON_SECRET` を同じ値で設定してください。
 
-1. このプロジェクトをVercelにデプロイ
-2. `vercel.json`が自動的に読み込まれます
-3. Vercelダッシュボードの「Cron Jobs」で実行状況を確認できます
+## 手動実行
 
-## ローカルテスト
+GitHub → **Actions** → **定期情報収集** → **Run workflow** で即座に実行できます。
 
-```bash
-curl http://localhost:3000/api/cron/update?secret=YOUR_SECRET
+## ファイル構成
+
 ```
-
-## 注意事項
-
-- Vercel Proプラン以上が必要です（無料プランではCronは使用できません）
-- Cron実行は最大10秒のタイムアウトがあります
-- ログはVercelダッシュボードで確認できます
+.github/workflows/scheduled-update.yml  # ワークフロー定義
+```
