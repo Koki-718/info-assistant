@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Plus, Trash2, ExternalLink, Loader2, Sparkles } from 'lucide-react';
 
@@ -26,7 +26,7 @@ type SuggestedSource = {
     type: 'rss' | 'web';
 };
 
-export default function TopicsPage() {
+function TopicsPageContent() {
     const searchParams = useSearchParams();
     const [topics, setTopics] = useState<Topic[]>([]);
     const [sources, setSources] = useState<Source[]>([]);
@@ -455,5 +455,19 @@ export default function TopicsPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function TopicsPage() {
+    return (
+        <Suspense fallback={
+            <div className="p-8 max-w-7xl mx-auto">
+                <div className="flex items-center justify-center min-h-[50vh]">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                </div>
+            </div>
+        }>
+            <TopicsPageContent />
+        </Suspense>
     );
 }
