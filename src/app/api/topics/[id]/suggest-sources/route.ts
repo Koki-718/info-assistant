@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { suggestRSSFeeds } from '@/lib/gemini';
 
 export async function GET(
@@ -11,7 +11,7 @@ export async function GET(
         const topicId = parseInt(id);
 
         // Fetch the topic to get the keyword
-        const { data: topic, error } = await supabase
+        const { data: topic, error } = await supabaseAdmin
             .from('topics')
             .select('keyword')
             .eq('id', topicId)

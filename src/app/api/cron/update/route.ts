@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { fetchFeed, fetchWebPage } from '@/lib/fetcher';
 import { analyzeArticle } from '@/lib/gemini';
 import { sendSlackNotification } from '@/lib/slack';
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
 
     try {
         // 1. Get all active sources
-        const { data: sources, error: sourceError } = await supabase
+        const { data: sources, error: sourceError } = await supabaseAdmin
             .from('sources')
             .select('*');
 
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
             // 3. Process each article
             for (const item of articles) {
                 // Check if exists
-                const { data: existing } = await supabase
+                const { data: existing } = await supabaseAdmin
                     .from('articles')
                     .select('id')
                     .eq('url', item.url)
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
                     }
 
                     // Save with all analysis fields
-                    const { data: savedArticle, error: saveError } = await supabase.from('articles').insert({
+                    const { data: savedArticle, error: saveError } = await supabaseAdmin.from('articles').insert({
                         source_id: source.id,
                         title: item.title,
                         url: item.url, // Assuming item.url is correct, not item.link as in diff
